@@ -331,18 +331,169 @@ public class GestionMedicos {
 		CallableStatement cll_reinicia=null;
 		Connection conn = null;
 		
-		try {
-			//Reinicio filas
-			conn = pool.getConnection();
-			cll_reinicia = conn.prepareCall("{call inicializa_test}");
-			cll_reinicia.execute();
-		} catch (SQLException e) {				
-			logger.error(e.getMessage());			
-		} finally {
-			if (cll_reinicia!=null) cll_reinicia.close();
-			if (conn!=null) conn.close();
-		
-		}			
+		// reservar_consulta con NIF del cliente no existente, NIF medico OK y fecha no
+				// ocupada.
+				// Debe darse cuenta de que no existe el cliente.
+				try {
+					// Reinicio filas
+					conn = pool.getConnection();
+					cll_reinicia = conn.prepareCall("{call inicializa_test}");
+					cll_reinicia.execute();
+					reservar_consulta("12341234G", "222222B", fechaBien);
+					System.out.println("RESERVA-MAL. No se da cuenta de que el NIF de cliente no existe.");
+				} catch (SQLException e) {
+					// System.out.println("Cod. Error: " + e.getErrorCode());
+					if (e.getErrorCode() == 1) {
+						System.out.println("RESERVA-OK. Se da cuenta de que NIF cliente no existe.");
+					}
+					logger.error(e.getMessage());
+				} finally {
+					if (cll_reinicia != null)
+						cll_reinicia.close();
+					if (conn != null)
+						conn.close();
+
+				}
+
+				// Reservar consulta con NIF cliente Ok, NIF médico MAL, fecha OK.
+				// Debe darse cuenta de que NIF médico no existe.
+				try {
+					// Reinicio filas
+
+					conn = pool.getConnection();
+					cll_reinicia = conn.prepareCall("{call inicializa_test}");
+					cll_reinicia.execute();
+					reservar_consulta("12345678A", "222288B", fechaBien);
+					System.out.println("RESERVA-MAL. No se da cuenta de que el NIF de médico no existe.");
+				} catch (SQLException e) {
+					// System.out.println("Cod. Error: " + e.getErrorCode());
+					if (e.getErrorCode() == 2) {
+						System.out.println("RESERVA-OK. Se da cuenta de que NIF médico no existe.");
+					}
+					logger.error(e.getMessage());
+				} finally {
+					if (cll_reinicia != null)
+						cll_reinicia.close();
+					if (conn != null)
+						conn.close();
+				}
+				if (rs_sel_reservas != null)
+					rs_sel_reservas.close();
+				// Reservar consulta en fecha con médico ocupado.
+				// Debe darse cuenta de que ya existe una consulta para esa fecha.
+				// Mirando los insert del procedimiento inicializa_test, el médico
+				// con id_medico = 1 es el médico con NIF 22222222B, el cual tiene una consulta
+				// el 24/03/2023.
+				// Esa fecha está asignada a la variable fechaOcupada.
+				try {
+					// Reinicio filas
+
+					conn = pool.getConnection();
+					cll_reinicia = conn.prepareCall("{call inicializa_test}");
+					cll_reinicia.execute();
+					reservar_consulta("87654321B", "8766788Y", fechaOcupada);
+					System.out.println(
+							"RESERVA-MAL. No se da cuenta de que ya se tiene una consulta en esa fecha para ese médico.");
+				} catch (SQLException e) {
+					// System.out.println("Cod. Error: " + e.getErrorCode());
+					if (e.getErrorCode() == 3) {
+						System.out.println(
+								"RESERVA-OK. Se da cuenta de que ya existe una consulta en esa fecha para ese médico.");
+					}
+					logger.error(e.getMessage());
+				} finally {
+					if (cll_reinicia != null)
+						cll_reinicia.close();
+					if (conn != null)
+						conn.close();
+				}
+
+				// Reservar consulta de una consulta reservada y anulada. Debe permitir la
+				// reserva.
+				try {
+					// Reinicio filas
+
+					conn = pool.getConnection();
+					cll_reinicia = conn.prepareCall("{call inicializa_test}");
+					cll_reinicia.execute();
+					reservar_consulta("12345678A", "222222B", fechaAnulada);
+					System.out.println(
+							"RESERVA-Ok. Se da cuenta de que ya se tiene una consulta en esa fecha para ese médico pero fue anulada.");
+				} catch (SQLException e) {
+
+					if (e.getErrorCode() == 3) {
+						System.out.println(
+								"RESERVA-Mal. No se da cuenta de que ya existe una consulta en esa fecha para ese médico pero fue anulada y la fecha está libre.");
+					}
+					logger.error(e.getMessage());
+				} finally {
+					if (cll_reinicia != null)
+						cll_reinicia.close();
+					if (conn != null)
+						conn.close();
+				}
+
+				// Reservar consulta con todos los datos OK. Debe insertar la consulta y
+				// aumentar el contador de consultas del médico correspondiente.
+				try {
+					// Reinicio filas
+
+					conn = pool.getConnection();
+					cll_reinicia = conn.prepareCall("{call inicializa_test}");
+					cll_reinicia.execute();
+					consultasIni = 0;
+					consultasFin = 0;
+					String nifMed = "222222B";
+					insertBien = false;
+					consultas = false;
+					pst_consultas_medico = conn.prepareStatement("select consultas from medico where NIF =?");
+					pst_consultas_medico.setString(1, nifMed);
+					rs_consultas_medico = pst_consultas_medico.executeQuery();
+					rs_consultas_medico.next();
+					consultasIni = rs_consultas_medico.getInt(1);
+					reservar_consulta("12345678A", nifMed, fechaBien);
+					pst_sel_reservas = conn.prepareStatement("select * from consulta where fecha_consulta = ?");
+					pst_sel_reservas.setDate(1, fechaBien_sql);
+					rs_sel_reservas = pst_sel_reservas.executeQuery();
+					if (rs_sel_reservas.next()) {
+						insertBien = true;
+					}
+					if (rs_consultas_medico != null)
+						rs_consultas_medico.close();
+					pst_consultas_medico.setString(1, nifMed);
+					rs_consultas_medico = pst_consultas_medico.executeQuery();
+					rs_consultas_medico.next();
+					consultasFin = rs_consultas_medico.getInt(1);
+					if (consultasFin - consultasIni == 1) {
+						consultas = true;
+					}
+
+					if (consultas && insertBien) {
+						System.out
+								.println("RESERVA-OK. Inserta la anulación y incrementa el contador de consultas del médico.");
+					} else {
+						System.out.println("RESERVA-Mal. No inserta la fila o no incrementa el contador correctamente.");
+					}
+
+				} catch (SQLException e) {
+					System.out.println("RESERVA-Mal. Algo no ha ido bien en la transacción. Cod. error:" + e.getErrorCode());
+					logger.error(e.getMessage());
+
+				} finally {
+
+					if (rs_consultas_medico != null)
+						rs_consultas_medico.close();
+					if (rs_sel_reservas != null)
+						rs_sel_reservas.close();
+					if (pst_consultas_medico != null)
+						pst_consultas_medico.close();			
+					if (pst_sel_reservas != null)
+						pst_sel_reservas.close();
+					if (cll_reinicia != null)
+						cll_reinicia.close();
+					if (conn != null)
+						conn.close();
+				}	
 		
 	}
 }

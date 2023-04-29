@@ -76,11 +76,12 @@ begin
   reset_seq( 'seq_anulacion' );
   
  
-        
-	delete from medico;
-	delete from cliente;
+       
+	
 	delete from anulacion;
-	delete from consulta;
+	delete from consulta; 
+	delete from cliente;
+	delete from medico;
    
 		
     insert into cliente values ('12345678A', 'Juan', 'Garcia', 'Porras', 'C/La Soledad n1');

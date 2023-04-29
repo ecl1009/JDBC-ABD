@@ -22,29 +22,43 @@ import lsi.ubu.util.exceptions.oracle.OracleSGBDErrorUtil;
 
 import static org.junit.Assert.assertEquals;
 
-
 /**
- * GestionMedicos:
- * Implementa la gestion de medicos segun el PDF de la carpeta enunciado
+ * GestionMedicos: Implementa la gestion de medicos segun el PDF de la carpeta
+ * enunciado
  * 
- * @author <a href="mailto:jmaudes@ubu.es">Jesus Maudes</a>
- * @author <a href="mailto:rmartico@ubu.es">Raul Marticorena</a>
- * @author <a href="mailto:pgdiaz@ubu.es">Pablo Garcia</a>
+ * @author <a href="mailto:ecl1009@alu.ubu.es">Eduardo Manuel Cabeza Lopez</a>
  * @version 1.0
- * @since 1.0 
+ * @since 1.0
  */
 public class GestionMedicos {
-	
+
 	private static Logger logger = LoggerFactory.getLogger(GestionMedicos.class);
 
 	private static final String script_path = "sql/";
 
-	public static void main(String[] args) throws SQLException{		
+	/**
+	 * Main: Método main que ejecuta el método tests()
+	 * 
+	 * @param args
+	 * @throws SQLException
+	 */
+	public static void main(String[] args) throws SQLException {
 		tests();
-
 		System.out.println("FIN.............");
 	}
-	
+
+	/**
+	 * reservar_consulta: Método que implementa la transacción para reservar una
+	 * consulta médica en la fecha especificada. Recibe el NIF del cliente y del
+	 * médico así como la fecha para la que se quiere reservar consulta. Si alguno
+	 * de los datos no se encuentra en la base de datos o la fecha ya se encuentra
+	 * ocupada lanza una GestionMedicosException.
+	 * 
+	 * @param m_NIF_cliente    NIF del cliente
+	 * @param m_NIF_medico     NIF del médico
+	 * @param m_Fecha_Consulta Fecha en la que se quiere reservar
+	 * @throws SQLException
+	 */
 	public static void reservar_consulta(String m_NIF_cliente, String m_NIF_medico, Date m_Fecha_Consulta)
 			throws SQLException {
 
@@ -138,7 +152,22 @@ public class GestionMedicos {
 		}
 
 	}
-	
+
+	/**
+	 * anular_consulta: Método que implementa la transacción para anular una
+	 * consulta. Recibe el NIF del cliente, el NIF del médico, la fecha de la
+	 * consulta que se quiere anular, la fecha en la que se anula y el motivo. Si
+	 * alguno de los datos no se encuentra en la base de datos, la fecha de
+	 * anulación está a menos de dos días de la consulta que se quiere anular o el
+	 * motivo es null, lanza una GestionMedicosException.
+	 * 
+	 * @param m_NIF_cliente     NIF del cliente
+	 * @param m_NIF_medico      NIF del médico
+	 * @param m_Fecha_Consulta  Fecha de la consulta a anular
+	 * @param m_Fecha_Anulacion Fecha en la que se anula
+	 * @param motivo            Motivo de la anulación
+	 * @throws SQLException
+	 */
 	public static void anular_consulta(String m_NIF_cliente, String m_NIF_medico, Date m_Fecha_Consulta,
 			Date m_Fecha_Anulacion, String motivo) throws SQLException {
 
@@ -260,7 +289,15 @@ public class GestionMedicos {
 				con.close();
 		}
 	}
-	
+
+	/**
+	 * consulta_medico: Método que imprime en pantalla las consultas no anuladas
+	 * para un médico. Se le pasa el NIF del médico. Si el NIF no está en la base de
+	 * datos lanza una GestionMedicosException. Imprime una consulta en cada línea.
+	 * 
+	 * @param m_NIF_medico NIF del médico
+	 * @throws SQLException
+	 */
 	public static void consulta_medico(String m_NIF_medico) throws SQLException {
 
 		PoolDeConexiones pool = PoolDeConexiones.getInstance();
@@ -328,425 +365,458 @@ public class GestionMedicos {
 		}
 	}
 	
+	/**
+	 * crearTablas: Método que ejecuta el script gestion_medicos.sql.
+	 * El script crea las tablas y secuencias de la base de datos.
+	 */
 	static public void creaTablas() {
 		ExecuteScript.run(script_path + "gestion_medicos.sql");
 	}
 
-	static void tests() throws SQLException{
+	/**
+	 * tests: Método que ejecuta diferentes tests sobre las transacciones reservar_consulta, anular_consulta y consulta_medico
+	 * para comprobar su correcto funcionamiento. 
+	 * Al inicio de cada test se llama al procedimiento inicializa_test definido en gestion_medicos.sql. 
+	 * Este procedimiento elimina las posibles filas de cada tabla de la BD y las inicializa con algunos datos de prueba.
+	 * 
+	 * @throws SQLException
+	 */
+	static void tests() throws SQLException {
 		creaTablas();
+
+		PoolDeConexiones pool = PoolDeConexiones.getInstance();
+
 		
-		PoolDeConexiones pool = PoolDeConexiones.getInstance();		
-		
-		//Relatar caso por caso utilizando el siguiente procedure para inicializar los datos
-		
-		CallableStatement cll_reinicia=null;
+
+		CallableStatement cll_reinicia = null;
 		Connection conn = null;
-		
+		PreparedStatement pst_sel_reservas = null;
+		ResultSet rs_sel_reservas = null;
+		PreparedStatement pst_sel_anula = null;
+		ResultSet rs_sel_anula = null;
+		PreparedStatement pst_consultas_medico = null;
+		ResultSet rs_consultas_medico = null;
+		Date fechaBien = new Date(124, 3, 25); // Año 1900 + 124 = 2024. Mes empieza en 0. Día 25.
+		Date fechaOcupada = new Date(122, 2, 25); // 25/03/2022 ocupada para médico con id = 2.
+		Date fechaAnulada = new Date(123, 2, 24); // Esta consulta se añade a consultas y posteriormente se añade la
+													// anulación de esta consulta a anulaciones.
+		Date fechaInexistente = new Date(150, 5, 12); // Fecha que no existe en la BD.
+		Date fechaAnulacionBien = new Date(122, 2, 20); // Fecha anulacion para anular consulta del 25/03/2022
+		Date fechaAnulacionMal = new Date(122, 2, 24); // Fecha anulacion no valida para anular consulta del 25/03/2022
+		java.sql.Date fechaBien_sql = new java.sql.Date(fechaBien.getTime());
+		String motivoBien = "Me he curado milagrosamente";
+		String motivoMal = null;
+		int consultasFin;
+		int consultasIni;
+		java.sql.Date fechaAnulacionBien_sql = new java.sql.Date(fechaAnulacionBien.getTime());
+		boolean insertBien = false;
+		boolean consultas = false;
+
 		// reservar_consulta con NIF del cliente no existente, NIF medico OK y fecha no
-				// ocupada.
-				// Debe darse cuenta de que no existe el cliente.
-				try {
-					// Reinicio filas
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					reservar_consulta("12341234G", "222222B", fechaBien);
-					System.out.println("RESERVA-MAL. No se da cuenta de que el NIF de cliente no existe.");
-				} catch (SQLException e) {
-					// System.out.println("Cod. Error: " + e.getErrorCode());
-					if (e.getErrorCode() == 1) {
-						System.out.println("RESERVA-OK. Se da cuenta de que NIF cliente no existe.");
-					}
-					logger.error(e.getMessage());
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
+		// ocupada.
+		// Debe darse cuenta de que no existe el cliente.
+		try {
+			// Reinicio filas
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			reservar_consulta("12341234G", "222222B", fechaBien);
+			System.out.println("RESERVA-MAL. No se da cuenta de que el NIF de cliente no existe.");
+		} catch (SQLException e) {
+			// System.out.println("Cod. Error: " + e.getErrorCode());
+			if (e.getErrorCode() == 1) {
+				System.out.println("RESERVA-OK. Se da cuenta de que NIF cliente no existe.");
+			}
+			logger.error(e.getMessage());
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
 
-				}
+		}
 
-				// Reservar consulta con NIF cliente Ok, NIF médico MAL, fecha OK.
-				// Debe darse cuenta de que NIF médico no existe.
-				try {
-					// Reinicio filas
+		// Reservar consulta con NIF cliente Ok, NIF médico MAL, fecha OK.
+		// Debe darse cuenta de que NIF médico no existe.
+		try {
+			// Reinicio filas
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					reservar_consulta("12345678A", "222288B", fechaBien);
-					System.out.println("RESERVA-MAL. No se da cuenta de que el NIF de médico no existe.");
-				} catch (SQLException e) {
-					// System.out.println("Cod. Error: " + e.getErrorCode());
-					if (e.getErrorCode() == 2) {
-						System.out.println("RESERVA-OK. Se da cuenta de que NIF médico no existe.");
-					}
-					logger.error(e.getMessage());
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
-				if (rs_sel_reservas != null)
-					rs_sel_reservas.close();
-				// Reservar consulta en fecha con médico ocupado.
-				// Debe darse cuenta de que ya existe una consulta para esa fecha.
-				// Mirando los insert del procedimiento inicializa_test, el médico
-				// con id_medico = 1 es el médico con NIF 22222222B, el cual tiene una consulta
-				// el 24/03/2023.
-				// Esa fecha está asignada a la variable fechaOcupada.
-				try {
-					// Reinicio filas
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			reservar_consulta("12345678A", "222288B", fechaBien);
+			System.out.println("RESERVA-MAL. No se da cuenta de que el NIF de médico no existe.");
+		} catch (SQLException e) {
+			// System.out.println("Cod. Error: " + e.getErrorCode());
+			if (e.getErrorCode() == 2) {
+				System.out.println("RESERVA-OK. Se da cuenta de que NIF médico no existe.");
+			}
+			logger.error(e.getMessage());
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
+		if (rs_sel_reservas != null)
+			rs_sel_reservas.close();
+		// Reservar consulta en fecha con médico ocupado.
+		// Debe darse cuenta de que ya existe una consulta para esa fecha.
+		// Mirando los insert del procedimiento inicializa_test, el médico
+		// con id_medico = 1 es el médico con NIF 22222222B, el cual tiene una consulta
+		// el 24/03/2023.
+		// Esa fecha está asignada a la variable fechaOcupada.
+		try {
+			// Reinicio filas
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					reservar_consulta("87654321B", "8766788Y", fechaOcupada);
-					System.out.println(
-							"RESERVA-MAL. No se da cuenta de que ya se tiene una consulta en esa fecha para ese médico.");
-				} catch (SQLException e) {
-					// System.out.println("Cod. Error: " + e.getErrorCode());
-					if (e.getErrorCode() == 3) {
-						System.out.println(
-								"RESERVA-OK. Se da cuenta de que ya existe una consulta en esa fecha para ese médico.");
-					}
-					logger.error(e.getMessage());
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			reservar_consulta("87654321B", "8766788Y", fechaOcupada);
+			System.out.println(
+					"RESERVA-MAL. No se da cuenta de que ya se tiene una consulta en esa fecha para ese médico.");
+		} catch (SQLException e) {
+			// System.out.println("Cod. Error: " + e.getErrorCode());
+			if (e.getErrorCode() == 3) {
+				System.out.println(
+						"RESERVA-OK. Se da cuenta de que ya existe una consulta en esa fecha para ese médico.");
+			}
+			logger.error(e.getMessage());
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-				// Reservar consulta de una consulta reservada y anulada. Debe permitir la
-				// reserva.
-				try {
-					// Reinicio filas
+		// Reservar consulta de una consulta reservada y anulada. Debe permitir la
+		// reserva.
+		try {
+			// Reinicio filas
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					reservar_consulta("12345678A", "222222B", fechaAnulada);
-					System.out.println(
-							"RESERVA-Ok. Se da cuenta de que ya se tiene una consulta en esa fecha para ese médico pero fue anulada.");
-				} catch (SQLException e) {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			reservar_consulta("12345678A", "222222B", fechaAnulada);
+			System.out.println(
+					"RESERVA-Ok. Se da cuenta de que ya se tiene una consulta en esa fecha para ese médico pero fue anulada.");
+		} catch (SQLException e) {
 
-					if (e.getErrorCode() == 3) {
-						System.out.println(
-								"RESERVA-Mal. No se da cuenta de que ya existe una consulta en esa fecha para ese médico pero fue anulada y la fecha está libre.");
-					}
-					logger.error(e.getMessage());
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+			if (e.getErrorCode() == 3) {
+				System.out.println(
+						"RESERVA-Mal. No se da cuenta de que ya existe una consulta en esa fecha para ese médico pero fue anulada y la fecha está libre.");
+			}
+			logger.error(e.getMessage());
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-				// Reservar consulta con todos los datos OK. Debe insertar la consulta y
-				// aumentar el contador de consultas del médico correspondiente.
-				try {
-					// Reinicio filas
+		// Reservar consulta con todos los datos OK. Debe insertar la consulta y
+		// aumentar el contador de consultas del médico correspondiente.
+		try {
+			// Reinicio filas
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					consultasIni = 0;
-					consultasFin = 0;
-					String nifMed = "222222B";
-					insertBien = false;
-					consultas = false;
-					pst_consultas_medico = conn.prepareStatement("select consultas from medico where NIF =?");
-					pst_consultas_medico.setString(1, nifMed);
-					rs_consultas_medico = pst_consultas_medico.executeQuery();
-					rs_consultas_medico.next();
-					consultasIni = rs_consultas_medico.getInt(1);
-					reservar_consulta("12345678A", nifMed, fechaBien);
-					pst_sel_reservas = conn.prepareStatement("select * from consulta where fecha_consulta = ?");
-					pst_sel_reservas.setDate(1, fechaBien_sql);
-					rs_sel_reservas = pst_sel_reservas.executeQuery();
-					if (rs_sel_reservas.next()) {
-						insertBien = true;
-					}
-					if (rs_consultas_medico != null)
-						rs_consultas_medico.close();
-					pst_consultas_medico.setString(1, nifMed);
-					rs_consultas_medico = pst_consultas_medico.executeQuery();
-					rs_consultas_medico.next();
-					consultasFin = rs_consultas_medico.getInt(1);
-					if (consultasFin - consultasIni == 1) {
-						consultas = true;
-					}
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			consultasIni = 0;
+			consultasFin = 0;
+			String nifMed = "222222B";
+			insertBien = false;
+			consultas = false;
+			pst_consultas_medico = conn.prepareStatement("select consultas from medico where NIF =?");
+			pst_consultas_medico.setString(1, nifMed);
+			rs_consultas_medico = pst_consultas_medico.executeQuery();
+			rs_consultas_medico.next();
+			consultasIni = rs_consultas_medico.getInt(1);
+			reservar_consulta("12345678A", nifMed, fechaBien);
+			pst_sel_reservas = conn.prepareStatement("select * from consulta where fecha_consulta = ?");
+			pst_sel_reservas.setDate(1, fechaBien_sql);
+			rs_sel_reservas = pst_sel_reservas.executeQuery();
+			if (rs_sel_reservas.next()) {
+				insertBien = true;
+			}
+			if (rs_consultas_medico != null)
+				rs_consultas_medico.close();
+			pst_consultas_medico.setString(1, nifMed);
+			rs_consultas_medico = pst_consultas_medico.executeQuery();
+			rs_consultas_medico.next();
+			consultasFin = rs_consultas_medico.getInt(1);
+			if (consultasFin - consultasIni == 1) {
+				consultas = true;
+			}
 
-					if (consultas && insertBien) {
-						System.out
-								.println("RESERVA-OK. Inserta la anulación y incrementa el contador de consultas del médico.");
-					} else {
-						System.out.println("RESERVA-Mal. No inserta la fila o no incrementa el contador correctamente.");
-					}
+			if (consultas && insertBien) {
+				System.out
+						.println("RESERVA-OK. Inserta la anulación y incrementa el contador de consultas del médico.");
+			} else {
+				System.out.println("RESERVA-Mal. No inserta la fila o no incrementa el contador correctamente.");
+			}
 
-				} catch (SQLException e) {
-					System.out.println("RESERVA-Mal. Algo no ha ido bien en la transacción. Cod. error:" + e.getErrorCode());
-					logger.error(e.getMessage());
+		} catch (SQLException e) {
+			System.out.println("RESERVA-Mal. Algo no ha ido bien en la transacción. Cod. error:" + e.getErrorCode());
+			logger.error(e.getMessage());
 
-				} finally {
+		} finally {
 
-					if (rs_consultas_medico != null)
-						rs_consultas_medico.close();
-					if (rs_sel_reservas != null)
-						rs_sel_reservas.close();
-					if (pst_consultas_medico != null)
-						pst_consultas_medico.close();			
-					if (pst_sel_reservas != null)
-						pst_sel_reservas.close();
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}	
-				
-				// Anular consulta con NIF cliente inexistente.Resto de datos OK.
-				try {
-					// Reinicio filas
+			if (rs_consultas_medico != null)
+				rs_consultas_medico.close();
+			if (rs_sel_reservas != null)
+				rs_sel_reservas.close();
+			if (pst_consultas_medico != null)
+				pst_consultas_medico.close();			
+			if (pst_sel_reservas != null)
+				pst_sel_reservas.close();
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					anular_consulta("123000A", "8766788Y", fechaOcupada, fechaAnulacionBien, motivoBien);
-					System.out.println("ANULA-Mal. No se da cuenta de que el NIF cliente no existe.");
-				} catch (SQLException e) {
-					if (e.getErrorCode() == 1) {
-						System.out.println("ANULA-OK. Se da cuenta de que el NIF de cliente no existe.");
-					}
-					logger.error(e.getMessage());
+		// Anular consulta con NIF cliente inexistente.Resto de datos OK.
+		try {
+			// Reinicio filas
 
-				} finally {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			anular_consulta("123000A", "8766788Y", fechaOcupada, fechaAnulacionBien, motivoBien);
+			System.out.println("ANULA-Mal. No se da cuenta de que el NIF cliente no existe.");
+		} catch (SQLException e) {
+			if (e.getErrorCode() == 1) {
+				System.out.println("ANULA-OK. Se da cuenta de que el NIF de cliente no existe.");
+			}
+			logger.error(e.getMessage());
 
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+		} finally {
 
-				// Anular consulta con NIF médico inexistente.Resto de datos OK.
-				try {
-					// Reinicio filas
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					anular_consulta("87654321B", "8766700Y", fechaOcupada, fechaAnulacionBien, motivoBien);
-					System.out.println("ANULA-Mal. No se da cuenta de que el NIF del médico no existe.");
-				} catch (SQLException e) {
-					if (e.getErrorCode() == 2) {
-						System.out.println("ANULA-OK. Se da cuenta de que el NIF del médico no existe.");
-					}
-					logger.error(e.getMessage());
+		// Anular consulta con NIF médico inexistente.Resto de datos OK.
+		try {
+			// Reinicio filas
 
-				} finally {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			anular_consulta("87654321B", "8766700Y", fechaOcupada, fechaAnulacionBien, motivoBien);
+			System.out.println("ANULA-Mal. No se da cuenta de que el NIF del médico no existe.");
+		} catch (SQLException e) {
+			if (e.getErrorCode() == 2) {
+				System.out.println("ANULA-OK. Se da cuenta de que el NIF del médico no existe.");
+			}
+			logger.error(e.getMessage());
 
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+		} finally {
 
-				// Anular consulta con fecha consulta inexistente.Resto de datos OK.
-				try {
-					// Reinicio filas
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					anular_consulta("87654321B", "8766788Y", fechaInexistente, fechaAnulacionBien, motivoBien);
-					System.out.println("ANULA-Mal. No se da cuenta de que la fecha de cosnulta no existe.");
-				} catch (SQLException e) {
-					if (e.getErrorCode() == 4) {
-						System.out.println("ANULA-OK. Se da cuenta de que la fecha de consulta no existe.");
-					}
-					logger.error(e.getMessage());
+		// Anular consulta con fecha consulta inexistente.Resto de datos OK.
+		try {
+			// Reinicio filas
 
-				} finally {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			anular_consulta("87654321B", "8766788Y", fechaInexistente, fechaAnulacionBien, motivoBien);
+			System.out.println("ANULA-Mal. No se da cuenta de que la fecha de cosnulta no existe.");
+		} catch (SQLException e) {
+			if (e.getErrorCode() == 4) {
+				System.out.println("ANULA-OK. Se da cuenta de que la fecha de consulta no existe.");
+			}
+			logger.error(e.getMessage());
 
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+		} finally {
 
-				// Anular consulta con fecha anulacion a menos de dos días.Resto de datos OK.
-				try {
-					// Reinicio filas
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					anular_consulta("87654321B", "8766788Y", fechaOcupada, fechaAnulacionMal, motivoBien);
-					System.out.println("ANULA-Mal. No se da cuenta de que la fecha de cosnulta no existe.");
-				} catch (SQLException e) {
-					if (e.getErrorCode() == 5) {
-						System.out.println(
-								"ANULA-OK. Se da cuenta de que la fecha de anulación esta a menos de dos días de la consulta.");
-					}
-					logger.error(e.getMessage());
+		// Anular consulta con fecha anulacion a menos de dos días.Resto de datos OK.
+		try {
+			// Reinicio filas
 
-				} finally {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			anular_consulta("87654321B", "8766788Y", fechaOcupada, fechaAnulacionMal, motivoBien);
+			System.out.println("ANULA-Mal. No se da cuenta de que la fecha de cosnulta no existe.");
+		} catch (SQLException e) {
+			if (e.getErrorCode() == 5) {
+				System.out.println(
+						"ANULA-OK. Se da cuenta de que la fecha de anulación esta a menos de dos días de la consulta.");
+			}
+			logger.error(e.getMessage());
 
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+		} finally {
 
-				// Anular consulta con motivo a null.
-				try {
-					// Reinicio filas
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					anular_consulta("87654321B", "8766788Y", fechaOcupada, fechaAnulacionBien, motivoMal);
-					System.out.println("ANULA-Mal. No se da cuenta de que la fecha de cosnulta no existe.");
-				} catch (SQLException e) {
-					if (e.getErrorCode() == 6) {
-						System.out.println("ANULA-OK. Se da cuenta de que el motivo es null.");
-					}
-					logger.error(e.getMessage());
+		// Anular consulta con motivo a null.
+		try {
+			// Reinicio filas
 
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			anular_consulta("87654321B", "8766788Y", fechaOcupada, fechaAnulacionBien, motivoMal);
+			System.out.println("ANULA-Mal. No se da cuenta de que la fecha de cosnulta no existe.");
+		} catch (SQLException e) {
+			if (e.getErrorCode() == 6) {
+				System.out.println("ANULA-OK. Se da cuenta de que el motivo es null.");
+			}
+			logger.error(e.getMessage());
 
-				// Anular consulta con todos los datos OK. Debe insertar la anulación y
-				// decrementar el contador de consultas del médico correspondiente.
-				try {
-					// Reinicio filas
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					consultasIni = 0;
-					consultasFin = 0;
-					String nifMedico = "8766788Y";
-					insertBien = false;
-					consultas = false;
-					pst_consultas_medico = conn.prepareStatement("select consultas from medico where NIF =?");
-					pst_consultas_medico.setString(1, nifMedico);
-					rs_consultas_medico = pst_consultas_medico.executeQuery();
-					rs_consultas_medico.next();
-					consultasIni = rs_consultas_medico.getInt(1);
-					anular_consulta("12345678A", nifMedico, fechaOcupada, fechaAnulacionBien, motivoBien);
-					pst_sel_anula = conn.prepareStatement("select * from anulacion where fecha_anulacion = ?"); // No es la
-																												// mejor forma,
-																												// pero sabemos
-																												// que no
-																												// tenemos esa
-																												// fecha de
-																												// anulación en
-																												// la BD.
-					pst_sel_anula.setDate(1, fechaAnulacionBien_sql);
-					rs_sel_anula = pst_sel_anula.executeQuery();
-					if (rs_sel_anula.next()) {
-						insertBien = true;
-					}
-					if (rs_consultas_medico != null)
-						rs_consultas_medico.close();
-					pst_consultas_medico.setString(1, nifMedico);
-					rs_consultas_medico = pst_consultas_medico.executeQuery();
-					rs_consultas_medico.next();
-					consultasFin = rs_consultas_medico.getInt(1);
-					if (consultasIni - consultasFin == 1) {
-						consultas = true;
-					}
+		// Anular consulta con todos los datos OK. Debe insertar la anulación y
+		// decrementar el contador de consultas del médico correspondiente.
+		try {
+			// Reinicio filas
 
-					if (consultas && insertBien) {
-						System.out.println("ANULA-OK. Inserta la anulación y decrementa el contador de consultas.");
-					} else {
-						System.out.println("ANULA-Mal. No inserta la anulación y/o no decrementa el contador de consultas.");
-					}
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			consultasIni = 0;
+			consultasFin = 0;
+			String nifMedico = "8766788Y";
+			insertBien = false;
+			consultas = false;
+			pst_consultas_medico = conn.prepareStatement("select consultas from medico where NIF =?");
+			pst_consultas_medico.setString(1, nifMedico);
+			rs_consultas_medico = pst_consultas_medico.executeQuery();
+			rs_consultas_medico.next();
+			consultasIni = rs_consultas_medico.getInt(1);
+			anular_consulta("12345678A", nifMedico, fechaOcupada, fechaAnulacionBien, motivoBien);
+			pst_sel_anula = conn.prepareStatement("select * from anulacion where fecha_anulacion = ?"); // No es la
+																										// mejor forma,
+																										// pero sabemos
+																										// que no
+																										// tenemos esa
+																										// fecha de
+																										// anulación en
+																										// la BD.
+			pst_sel_anula.setDate(1, fechaAnulacionBien_sql);
+			rs_sel_anula = pst_sel_anula.executeQuery();
+			if (rs_sel_anula.next()) {
+				insertBien = true;
+			}
+			if (rs_consultas_medico != null)
+				rs_consultas_medico.close();
+			pst_consultas_medico.setString(1, nifMedico);
+			rs_consultas_medico = pst_consultas_medico.executeQuery();
+			rs_consultas_medico.next();
+			consultasFin = rs_consultas_medico.getInt(1);
+			if (consultasIni - consultasFin == 1) {
+				consultas = true;
+			}
 
-				} catch (SQLException e) {
-					System.out.println("ANULA-Mal. Algo no ha ido bien en la transacción. Cod. error:" + e.getErrorCode());
-					logger.error(e.getMessage());
+			if (consultas && insertBien) {
+				System.out.println("ANULA-OK. Inserta la anulación y decrementa el contador de consultas.");
+			} else {
+				System.out.println("ANULA-Mal. No inserta la anulación y/o no decrementa el contador de consultas.");
+			}
 
-				} finally {
-					if (rs_sel_reservas != null)
-						rs_sel_reservas.close();
-					if(rs_sel_anula != null)
-						rs_sel_anula.close();
-					if(pst_sel_anula != null)
-						pst_sel_anula.close();
-					if (pst_sel_reservas != null)
-						pst_sel_reservas.close();
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+		} catch (SQLException e) {
+			System.out.println("ANULA-Mal. Algo no ha ido bien en la transacción. Cod. error:" + e.getErrorCode());
+			logger.error(e.getMessage());
 
-				// Consultar médico con NIF medico inexistente
-				try {
-					// Reinicio filas
+		} finally {
+			if (rs_sel_reservas != null)
+				rs_sel_reservas.close();
+			if(rs_sel_anula != null)
+				rs_sel_anula.close();
+			if(pst_sel_anula != null)
+				pst_sel_anula.close();
+			if (pst_sel_reservas != null)
+				pst_sel_reservas.close();
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					consulta_medico("121212B");
-					System.out.println("CONSULTA-Mal. No se da cuenta de que el NIF  del médico no existe.");
-				} catch (SQLException e) {
-					if (e.getErrorCode() == 2) {
-						System.out.println("CONSULTA-OK. Se da cuenta de que el NIF del médico no existe.");
-					}
-					logger.error(e.getMessage());
+		// Consultar médico con NIF medico inexistente
+		try {
+			// Reinicio filas
 
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			consulta_medico("121212B");
+			System.out.println("CONSULTA-Mal. No se da cuenta de que el NIF  del médico no existe.");
+		} catch (SQLException e) {
+			if (e.getErrorCode() == 2) {
+				System.out.println("CONSULTA-OK. Se da cuenta de que el NIF del médico no existe.");
+			}
+			logger.error(e.getMessage());
 
-				// Consultar consultar todo OK.
-				try {
-					// Reinicio filas
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
 
-					conn = pool.getConnection();
-					cll_reinicia = conn.prepareCall("{call inicializa_test}");
-					cll_reinicia.execute();
-					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					PrintStream ps = new PrintStream(baos);
-					System.setOut(ps); // Redirigir la salida a ps.
-					consulta_medico("8766788Y");
-					String salida = baos.toString().trim(); // Convertir la salida a cadena y eliminar blancos.
-					String expected = "Consultas para el médico 2\n"
-							+ "*Fecha: 2022-03-25   *Consulta: 2   *NIF Paciente: 87654321B"; // Cadena esperada.
-					System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out))); // redirigir la salida de nuevo a
-																								// la salida estándar.
-					try {
-						assertEquals(expected, salida.trim()); // Comparacion salida esperada y real. Se hace trim para eliminar
-																// blancos y no obtener errores por un espacio de más, por
-																// ejemplo.
-						System.out.println("CONSULTA-OK. Muestra la salida esperada.");
-					} catch (AssertionError ex) {
-						logger.error(ex.getMessage());
-						System.out.println("Mal. La salida real y la esperada no coinciden.");
-						throw ex;
-					}
-				} catch (SQLException e) {
+		// Consultar consultar todo OK.
+		try {
+			// Reinicio filas
 
-					logger.error(e.getMessage());
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			PrintStream ps = new PrintStream(baos);
+			System.setOut(ps); // Redirigir la salida a ps.
+			consulta_medico("8766788Y");
+			String salida = baos.toString().trim(); // Convertir la salida a cadena y eliminar blancos.
+			String expected = "Consultas para el médico 2\n"
+					+ "*Fecha: 2022-03-25   *Consulta: 2   *NIF Paciente: 87654321B"; // Cadena esperada.
+			System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out))); // redirigir la salida de nuevo a
+																						// la salida estándar.
+			try {
+				assertEquals(expected, salida.trim()); // Comparacion salida esperada y real. Se hace trim para eliminar
+														// blancos y no obtener errores por un espacio de más, por
+														// ejemplo.
+				System.out.println("CONSULTA-OK. Muestra la salida esperada.");
+			} catch (AssertionError ex) {
+				logger.error(ex.getMessage());
+				System.out.println("Mal. La salida real y la esperada no coinciden.");
+				throw ex;
+			}
+		} catch (SQLException e) {
 
-				} finally {
-					if (cll_reinicia != null)
-						cll_reinicia.close();
-					if (conn != null)
-						conn.close();
-				}
+			logger.error(e.getMessage());
 
-		
+		} finally {
+			if (cll_reinicia != null)
+				cll_reinicia.close();
+			if (conn != null)
+				conn.close();
+		}
+
 	}
+
 }

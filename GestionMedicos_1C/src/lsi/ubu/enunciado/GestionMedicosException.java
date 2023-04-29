@@ -24,6 +24,7 @@ public class GestionMedicosException extends SQLException {
 	public static final int MEDICO_OCUPADO = 3;
 	public static final int CONSULTA_NO_EXISTE = 4;
 	public static final int CONSULTA_NO_ANULA = 5;
+	public static final int MOTIVO_NULL = 6;
 
 	private int codigo; // = -1;
 	private String mensaje;
@@ -49,6 +50,9 @@ public class GestionMedicosException extends SQLException {
 			break;
 		case CONSULTA_NO_ANULA:
 			mensaje = "La Consulta no se puede anular para la fecha introducida";
+			break;
+		case MOTIVO_NULL:
+			mensaje = "Se debe indicar un motivo para la anulación";
 			break;
 		}					
 

@@ -250,26 +250,71 @@ public class GestionMedicos {
 		}
 	}
 	
-	public static void consulta_medico(String m_NIF_medico)
-			throws SQLException {
+	public static void consulta_medico(String m_NIF_medico) throws SQLException {
 
-				
 		PoolDeConexiones pool = PoolDeConexiones.getInstance();
-		Connection con=null;
+		Connection con = null;
+		java.util.Date fecha;
+		int consulta;
+		int medico;
+		String paciente;
+		PreparedStatement pst_sel_medico = null;
+		PreparedStatement pst_sel_consulta = null;
+		ResultSet rs_sel_consulta = null;
+		ResultSet rs_sel_medico = null;
 
-	
-		try{
+		try {
+
 			con = pool.getConnection();
+
+			pst_sel_medico = con.prepareStatement("select id_medico " + "from medico " + "where NIF=?");
+			pst_sel_medico.setString(1, m_NIF_medico);
+			rs_sel_medico = pst_sel_medico.executeQuery();
+
+			if (!rs_sel_medico.next()) {
+				throw new GestionMedicosException(2);
+			}
+
+			medico = rs_sel_medico.getInt(1);
+
+			pst_sel_consulta = con.prepareStatement("SELECT id_consulta, fecha_consulta, id_medico, NIF "
+					+ "FROM consulta " + "WHERE id_medico = ? " + "AND NOT EXISTS ( " + "SELECT * " + "FROM anulacion "
+					+ "WHERE anulacion.id_consulta = consulta.id_consulta " + ") " + "ORDER BY fecha_consulta");
+
+			pst_sel_consulta.setInt(1, medico);
+			rs_sel_consulta = pst_sel_consulta.executeQuery();
+
+			System.out.println("Consultas para el médico " + medico);
+			
+			while (rs_sel_consulta.next()) {				
+				fecha = rs_sel_consulta.getDate(2);
+				consulta = rs_sel_consulta.getInt(1);
+				paciente = new String(rs_sel_consulta.getString(4));
+				System.out.println("*Fecha: " + fecha + "   *Consulta: " + consulta + "   *NIF Paciente: " + paciente);
+			}
+			
+			con.commit();
 			
 		} catch (SQLException e) {
-			//Completar por el alumno			
-			
+
+			con.rollback();
 			logger.error(e.getMessage());
-			throw e;		
+			throw e;
 
 		} finally {
-			/*A rellenar por el alumno, liberar recursos*/
-		}		
+			/* Liberar recursos */
+
+			if (rs_sel_medico != null)
+				rs_sel_medico.close();
+			if (rs_sel_consulta != null)
+				rs_sel_consulta.close();
+			if (pst_sel_medico != null)
+				pst_sel_medico.close();
+			if (pst_sel_consulta != null)
+				pst_sel_consulta.close();
+			if (con != null)
+				con.close();
+		}
 	}
 	
 	static public void creaTablas() {

@@ -95,14 +95,16 @@ public class GestionMedicos {
 			pst_ins_consulta.executeUpdate();
 			pst_upd_medico = con.prepareStatement("update medico set consultas = consultas + ? where id_medico = ?"
 					+ " and (select count(*) from consulta join anulacion on consulta.id_consulta=anulacion.id_consulta"
-					+ " where fecha_consulta=? and consulta.id_medico = ?)+1"
-					+ "=(select count(*) from consulta where fecha_consulta=? and id_medico=?)");
+					+ " where fecha_consulta=? and consulta.id_medico = ? and consulta.NIF = ?)+1"
+					+ "=(select count(*) from consulta where fecha_consulta=? and id_medico=? and NIF = ?)");
 			pst_upd_medico.setInt(1, 1);
 			pst_upd_medico.setInt(2, idMedico);
 			pst_upd_medico.setDate(3, m_Fecha_sql);
 			pst_upd_medico.setInt(4, idMedico);
-			pst_upd_medico.setDate(5, m_Fecha_sql);
-			pst_upd_medico.setInt(6, idMedico);
+			pst_upd_medico.setString(5, m_NIF_cliente);
+			pst_upd_medico.setDate(6, m_Fecha_sql);
+			pst_upd_medico.setInt(7, idMedico);
+			pst_upd_medico.setString(8, m_NIF_cliente);
 
 			int numUpd = pst_upd_medico.executeUpdate();
 			if (numUpd == 0) {
@@ -232,14 +234,16 @@ public class GestionMedicos {
 
 			pst_upd_medico = con.prepareStatement("update medico set consultas = consultas + ? where id_medico = ?"
 					+ " and (select count(*) from consulta join anulacion on consulta.id_consulta=anulacion.id_consulta"
-					+ " where fecha_consulta=? and consulta.id_medico = ?)"
-					+ "=(select count(*) from consulta where fecha_consulta=? and id_medico=?)");
+					+ " where fecha_consulta=? and consulta.id_medico = ? and consulta.NIF = ?)"
+					+ "=(select count(*) from consulta where fecha_consulta=? and id_medico=? and NIF = ?)");
 			pst_upd_medico.setInt(1, -1);
 			pst_upd_medico.setInt(2, idMedico);
 			pst_upd_medico.setDate(3, m_Fecha_sql);
 			pst_upd_medico.setInt(4, idMedico);
-			pst_upd_medico.setDate(5, m_Fecha_sql);
-			pst_upd_medico.setInt(6, idMedico);
+			pst_upd_medico.setString(5,m_NIF_cliente);
+			pst_upd_medico.setDate(6, m_Fecha_sql);
+			pst_upd_medico.setInt(7, idMedico);
+			pst_upd_medico.setString(8,m_NIF_cliente);
 			int numUpd = pst_upd_medico.executeUpdate();
 
 			if (numUpd == 0) {
@@ -709,7 +713,7 @@ public class GestionMedicos {
 			rs_consultas_medico = pst_consultas_medico.executeQuery();
 			rs_consultas_medico.next();
 			consultasIni = rs_consultas_medico.getInt(1);
-			anular_consulta("12345678A", nifMedico, fechaOcupada, fechaAnulacionBien, motivoBien);
+			anular_consulta("87654321B", nifMedico, fechaOcupada, fechaAnulacionBien, motivoBien);
 			pst_sel_anula = conn.prepareStatement("select * from anulacion where fecha_anulacion = ?"); // No es la
 																										// mejor forma,
 																										// pero sabemos
